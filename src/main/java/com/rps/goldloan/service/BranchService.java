@@ -24,6 +24,9 @@ public class BranchService {
     @Autowired
     BranchRepository branchRepository;
 
+    @Autowired
+    EmailService emailService;
+
     public BranchResponse createBranch(BranchRequest branchRequest) {
         try {
             validateBranchRequest(branchRequest);
@@ -37,6 +40,7 @@ public class BranchService {
             branch.setCreatedAt(LocalDateTime.now());
             branch.setUpdatedAt(LocalDateTime.now());
             branch = branchRepository.save(branch);
+            emailService.sendBranchCreationEmail(branch);
             return branchToBranchDto(branch);
         } catch (IllegalArgumentException e) {
             throw new BranchCreationException(e.getMessage());

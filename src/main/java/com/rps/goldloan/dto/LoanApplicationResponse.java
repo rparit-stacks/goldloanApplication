@@ -9,13 +9,13 @@ public class LoanApplicationResponse {
 
     private Long id;
     private String applicationNumber;
-    private Long customerId;
-    private Long branchId;
+    private CustomerResponse customer;
+    private BranchResponse branch;
     private BigDecimal requestedAmount;
     private BigDecimal approvedAmount;
     private ApplicationStatus status;
     private String stage;
-    private Long termId;
+    private LoanTermResponse term;
     private BigDecimal interestRate;
     private Integer tenureMonths;
     private Long createdBy;
@@ -40,20 +40,20 @@ public class LoanApplicationResponse {
         this.applicationNumber = applicationNumber;
     }
 
-    public Long getCustomerId() {
-        return customerId;
+    public CustomerResponse getCustomer() {
+        return customer;
     }
 
-    public void setCustomerId(Long customerId) {
-        this.customerId = customerId;
+    public void setCustomer(CustomerResponse customer) {
+        this.customer = customer;
     }
 
-    public Long getBranchId() {
-        return branchId;
+    public BranchResponse getBranch() {
+        return branch;
     }
 
-    public void setBranchId(Long branchId) {
-        this.branchId = branchId;
+    public void setBranch(BranchResponse branch) {
+        this.branch = branch;
     }
 
     public BigDecimal getRequestedAmount() {
@@ -88,12 +88,12 @@ public class LoanApplicationResponse {
         this.stage = stage;
     }
 
-    public Long getTermId() {
-        return termId;
+    public LoanTermResponse getTerm() {
+        return term;
     }
 
-    public void setTermId(Long termId) {
-        this.termId = termId;
+    public void setTerm(LoanTermResponse term) {
+        this.term = term;
     }
 
     public BigDecimal getInterestRate() {

@@ -31,6 +31,9 @@ public class UserService {
     @Autowired
     PasswordEncoder passwordEncoder;
 
+    @Autowired
+    EmailService emailService;
+
     public UserResponse createUser(UserRequest userRequest) {
         try {
             validateUserRequest(userRequest);
@@ -51,6 +54,7 @@ public class UserService {
             user.setUpdatedAt(LocalDateTime.now());
 
             user = userRepository.save(user);
+            emailService.sendUserCreationEmail(user);
             return userToUserResponse(user);
         } catch (IllegalArgumentException e) {
             throw new UserCreationException(e.getMessage());
