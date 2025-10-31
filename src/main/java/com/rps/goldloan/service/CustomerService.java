@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -25,6 +27,8 @@ public class CustomerService {
 
     public CustomerResponse createCustomer(CustomerRequest customerRequest){
         try {
+            validateCustomerRequest(customerRequest);
+
             Customer customer = new Customer();
             customer.setFirstName(customerRequest.getFirstName());
             customer.setLastName(customerRequest.getLastName());
@@ -40,6 +44,8 @@ public class CustomerService {
             customer = customerRepository.save(customer);
 
             return customerToCustomerResponseDto(customer);
+        } catch (IllegalArgumentException e) {
+            throw new CustomerCreationException(e.getMessage());
         } catch (Exception e) {
             throw new CustomerCreationException("Error creating customer: " + e.getMessage());
         }
@@ -49,6 +55,20 @@ public class CustomerService {
         Customer customer = customerRepository.findById(customerId).orElseThrow(() ->
                 new CustomerNotFoundException("Customer not found with ID: " + customerId));
         return customerToCustomerResponseDto(customer);
+    }
+
+    public Customer getCustomer(Long customerId) {
+        return customerRepository.findById(customerId).orElseThrow(() ->
+                new CustomerNotFoundException("Customer not found with ID: " + customerId));
+    }
+
+    public List<CustomerResponse> getAllCustomers() {
+        List<Customer> customers = customerRepository.findAll();
+        List<CustomerResponse> customerResponses = new ArrayList<>();
+        for (Customer customer : customers) {
+            customerResponses.add(customerToCustomerResponseDto(customer));
+        }
+        return customerResponses;
     }
 
     public CustomerResponse updateCustomer(Long customerId, CustomerUpdateDto customerUpdateDto) {
@@ -101,6 +121,34 @@ public class CustomerService {
             throw e;
         } catch (Exception e) {
             throw new CustomerUpdateException("Error updating customer with ID: " + customerId + ". " + e.getMessage());
+        }
+    }
+
+    public void deleteCustomer(Long customerId) {
+        if (!customerRepository.existsById(customerId)) {
+            throw new CustomerNotFoundException("Customer not found with ID: " + customerId);
+        }
+        customerRepository.deleteById(customerId);
+    }
+
+    private void validateCustomerRequest(CustomerRequest customerRequest) {
+        if (Objects.isNull(customerRequest)) {
+            throw new IllegalArgumentException("Customer request cannot be null");
+        }
+        if (Objects.isNull(customerRequest.getFirstName()) || customerRequest.getFirstName().isEmpty()) {
+            throw new IllegalArgumentException("First name is required and cannot be empty");
+        }
+        if (Objects.isNull(customerRequest.getLastName()) || customerRequest.getLastName().isEmpty()) {
+            throw new IllegalArgumentException("Last name is required and cannot be empty");
+        }
+        if (Objects.isNull(customerRequest.getMobileNumber()) || customerRequest.getMobileNumber().isEmpty()) {
+            throw new IllegalArgumentException("Mobile number is required and cannot be empty");
+        }
+        if (Objects.isNull(customerRequest.getIdentificationType())) {
+            throw new IllegalArgumentException("Identification type is required and cannot be null");
+        }
+        if (Objects.isNull(customerRequest.getIdentificationNumber()) || customerRequest.getIdentificationNumber().isEmpty()) {
+            throw new IllegalArgumentException("Identification number is required and cannot be empty");
         }
     }
 

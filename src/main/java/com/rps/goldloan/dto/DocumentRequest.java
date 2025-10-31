@@ -8,7 +8,7 @@ public class DocumentRequest {
     private DocumentType type;
     private String fileName;
     private String fileUrl;
-    private Long uploadedById;
+    private Long uploadedByUserId;
 
     public Long getLoanApplicationId() {
         return loanApplicationId;
@@ -43,10 +43,10 @@ public class DocumentRequest {
     }
 
     public Long getUploadedById() {
-        return uploadedById;
+        return uploadedByUserId;
     }
 
-    public void setUploadedById(Long uploadedById) {
-        this.uploadedById = uploadedById;
+    public void setUploadedById(Long uploadedByUserId) {
+        this.uploadedByUserId = uploadedByUserId;
     }
 }
