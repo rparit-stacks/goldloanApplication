@@ -4,9 +4,9 @@ A comprehensive Spring Boot application for managing gold loan operations with R
 
 ## 🎥 Video Tutorial
 
-**Project Explanation Video:** [Watch Video Here](src/main/utils/IntroVideo.mp4)
+**Project Explanation Video:** [Watch Video Here]((https://youtu.be/jstN7swtM1E))
 
-For detailed architecture explanation and service layer implementation, check the video located at `src/main/utils/IntroVideo.mp4`
+For detailed architecture explanation and service layer implementation, check the video located at `https://youtu.be/jstN7swtM1E`
 
 ---
 
