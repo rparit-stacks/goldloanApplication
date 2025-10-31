@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Video Files ###
+*.mp4
+src/main/java/com/rps/goldloan/utils/IntroVideo.mp4

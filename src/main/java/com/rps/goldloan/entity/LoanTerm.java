@@ -14,7 +14,7 @@ public class LoanTerm {
 
     private String name;
 
-    private Integer maxLTVPercent;
+    private Integer maxLTVPercent; //->
 
     private BigDecimal minAmount;
 
