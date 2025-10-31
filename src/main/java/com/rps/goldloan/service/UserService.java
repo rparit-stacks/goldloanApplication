@@ -42,9 +42,9 @@ public class UserService {
             user.setEmail(userRequest.getEmail());
             user.setRole(userRequest.getRole());
             
-            if (userRequest.getBranchId() != null) {
-                user.setBranch(branchService.getBranch(userRequest.getBranchId()));
-            }
+
+                user.setBranch(branchService.getBranch(1L));  //we are setting default branch it can be chnged later when admin created more branches
+
             
             user.setActive(userRequest.isActive());
             user.setCreatedAt(LocalDateTime.now());

@@ -2,15 +2,15 @@ package com.rps.goldloan.dto;
 
 import com.rps.goldloan.enums.Role;
 
-public class UserRequest {
+public class UserUpdateDto {
 
     private String username;
     private String password;
     private String fullName;
     private String email;
     private Role role;
-
-    private boolean active;
+    private Long branchId;
+    private Boolean active;
 
     public String getUsername() {
         return username;
@@ -52,12 +52,20 @@ public class UserRequest {
         this.role = role;
     }
 
+    public Long getBranchId() {
+        return branchId;
+    }
 
-    public boolean isActive() {
+    public void setBranchId(Long branchId) {
+        this.branchId = branchId;
+    }
+
+    public Boolean getActive() {
         return active;
     }
 
-    public void setActive(boolean active) {
+    public void setActive(Boolean active) {
         this.active = active;
     }
 }
+
