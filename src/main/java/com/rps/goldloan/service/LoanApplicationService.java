@@ -1,11 +1,6 @@
 package com.rps.goldloan.service;
 
-import com.rps.goldloan.dto.BranchResponse;
-import com.rps.goldloan.dto.CustomerResponse;
-import com.rps.goldloan.dto.LoanApplicationRequest;
-import com.rps.goldloan.dto.LoanApplicationResponse;
-import com.rps.goldloan.dto.LoanApplicationUpdateDto;
-import com.rps.goldloan.dto.LoanTermResponse;
+import com.rps.goldloan.dto.*;
 import com.rps.goldloan.entity.LoanApplication;
 import com.rps.goldloan.entity.LoanTerm;
 import com.rps.goldloan.entity.User;
@@ -24,9 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -50,28 +45,31 @@ public class LoanApplicationService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private ApplicationAuditService applicationAuditService;
+
     public LoanApplicationResponse createLoanApplication(LoanApplicationRequest loanApplicationRequest) {
         try {
             validateLoanApplicationRequest(loanApplicationRequest);
 
             LoanApplication loanApplication = new LoanApplication();
-            
+
             loanApplication.setCustomer(customerService.getCustomer(loanApplicationRequest.getCustomerId()));
             loanApplication.setBranch(branchService.getBranch(loanApplicationRequest.getBranchId()));
             loanApplication.setRequestedAmount(loanApplicationRequest.getRequestedAmount());
-            
+
             if (loanApplicationRequest.getTermId() != null) {
                 LoanTerm loanTerm = loanTermService.getLoanTerm(loanApplicationRequest.getTermId());
                 loanApplication.setTerm(loanTerm);
             }
-            
+
             loanApplication.setInterestRate(loanApplicationRequest.getInterestRate());
             loanApplication.setTenureMonths(loanApplicationRequest.getTenureMonths());
             loanApplication.setNotes(loanApplicationRequest.getNotes());
             loanApplication.setStatus(ApplicationStatus.APPLIED);
             loanApplication.setStage("IN REVIEW");
             loanApplication.setApplicationNumber(generateApplicationNumber());
-            
+
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.isAuthenticated()) {
                 CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -79,18 +77,33 @@ public class LoanApplicationService {
                 loanApplication.setCreatedBy(currentUser);
                 loanApplication.setAssignedTo(currentUser);
             }
-            
+
             loanApplication.setCreatedAt(LocalDateTime.now());
             loanApplication.setUpdatedAt(LocalDateTime.now());
 
             loanApplication = loanApplicationRepository.save(loanApplication);
+
+            //Audit trail
+            createCreationAudit(loanApplication);
+
             emailService.sendLoanApplicationEmail(loanApplication);
             return loanApplicationToResponse(loanApplication);
         } catch (IllegalArgumentException e) {
-            throw new LoanApplicationCreationException(e.getMessage());
+            throw new LoanApplicationCreationException(e.getMessage(), e);
         } catch (Exception e) {
-            throw new LoanApplicationCreationException("Error creating loan application: " + e.getMessage());
+            throw new LoanApplicationCreationException("Error creating loan application: " + e.getMessage(), e);
         }
+    }
+
+    private void createCreationAudit(LoanApplication loanApplication) {
+        ApplicationAuditRequest applicationAuditRequest = new ApplicationAuditRequest();
+        applicationAuditRequest.setLoanApplicationId(loanApplication.getId());
+        applicationAuditRequest.setAction("Loan Application Created");
+        applicationAuditRequest.setFromStatus(null);
+        applicationAuditRequest.setToStatus(ApplicationStatus.APPLIED);
+        applicationAuditRequest.setPerformedById(loanApplication.getCreatedBy().getId());
+        applicationAuditRequest.setComment("New loan application created and submitted for review.");
+        applicationAuditService.createApplicationAudit(applicationAuditRequest);
     }
 
     public LoanApplicationResponse getLoanApplicationById(Long loanApplicationId) {
@@ -110,11 +123,9 @@ public class LoanApplicationService {
 
     public List<LoanApplicationResponse> getAllLoanApplications() {
         List<LoanApplication> loanApplications = loanApplicationRepository.findAll();
-        List<LoanApplicationResponse> loanApplicationResponses = new ArrayList<>();
-        for (LoanApplication loanApplication : loanApplications) {
-            loanApplicationResponses.add(loanApplicationToResponse(loanApplication));
-        }
-        return loanApplicationResponses;
+        return loanApplications.stream()
+                .map(this::loanApplicationToResponse)
+                .collect(Collectors.toList());
     }
 
     public LoanApplicationResponse updateLoanApplication(Long loanApplicationId, LoanApplicationUpdateDto loanApplicationUpdateDto) {
@@ -122,41 +133,58 @@ public class LoanApplicationService {
             LoanApplication loanApplication = loanApplicationRepository.findById(loanApplicationId)
                     .orElseThrow(() -> new LoanApplicationNotFoundException("Loan application not found with ID: " + loanApplicationId));
 
+            // --- Prepare for Audit ---
+            StringBuilder commentBuilder = new StringBuilder("Application updated: ");
+            ApplicationStatus fromStatus = loanApplication.getStatus();
+            boolean isStatusChanged = false;
+
             if (Objects.nonNull(loanApplicationUpdateDto.getCustomerId())) {
                 loanApplication.setCustomer(customerService.getCustomer(loanApplicationUpdateDto.getCustomerId()));
+                commentBuilder.append("Customer changed. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getBranchId())) {
                 loanApplication.setBranch(branchService.getBranch(loanApplicationUpdateDto.getBranchId()));
+                commentBuilder.append("Branch changed. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getRequestedAmount())) {
                 loanApplication.setRequestedAmount(loanApplicationUpdateDto.getRequestedAmount());
+                commentBuilder.append("Requested amount updated. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getApprovedAmount())) {
                 loanApplication.setApprovedAmount(loanApplicationUpdateDto.getApprovedAmount());
+                commentBuilder.append("Approved amount set. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getStatus())) {
-                loanApplication.setStatus(loanApplicationUpdateDto.getStatus());
+                if (loanApplication.getStatus() != loanApplicationUpdateDto.getStatus()) {
+                    isStatusChanged = true;
+                    commentBuilder.append("Status changed from ").append(fromStatus).append(" to ").append(loanApplicationUpdateDto.getStatus()).append(". ");
+                    loanApplication.setStatus(loanApplicationUpdateDto.getStatus());
+                }
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getStage()) && !loanApplicationUpdateDto.getStage().isEmpty()) {
                 loanApplication.setStage(loanApplicationUpdateDto.getStage());
+                commentBuilder.append("Stage updated to '").append(loanApplicationUpdateDto.getStage()).append("'. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getTermId())) {
                 LoanTerm loanTerm = loanTermService.getLoanTerm(loanApplicationUpdateDto.getTermId());
                 loanApplication.setTerm(loanTerm);
+                commentBuilder.append("Loan term updated. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getInterestRate())) {
                 loanApplication.setInterestRate(loanApplicationUpdateDto.getInterestRate());
+                commentBuilder.append("Interest rate updated. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getTenureMonths())) {
                 loanApplication.setTenureMonths(loanApplicationUpdateDto.getTenureMonths());
+                commentBuilder.append("Tenure updated. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getCreatedBy())) {
@@ -164,21 +192,43 @@ public class LoanApplicationService {
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getAssignedTo())) {
-                loanApplication.setAssignedTo(userService.getUser(loanApplicationUpdateDto.getAssignedTo()));
+                User newAssignee = userService.getUser(loanApplicationUpdateDto.getAssignedTo());
+                loanApplication.setAssignedTo(newAssignee);
+                commentBuilder.append("Assigned to user '").append(newAssignee.getUsername()).append("'. ");
             }
 
             if (Objects.nonNull(loanApplicationUpdateDto.getNotes()) && !loanApplicationUpdateDto.getNotes().isEmpty()) {
                 loanApplication.setNotes(loanApplicationUpdateDto.getNotes());
+                commentBuilder.append("Notes updated. ");
             }
 
             loanApplication.setUpdatedAt(LocalDateTime.now());
             loanApplication = loanApplicationRepository.save(loanApplication);
 
+            // --- Create Audit Record for Update ---
+            ApplicationAuditRequest applicationAuditRequest = new ApplicationAuditRequest();
+            applicationAuditRequest.setLoanApplicationId(loanApplication.getId());
+            applicationAuditRequest.setAction("Loan Application Updated");
+            applicationAuditRequest.setComment(commentBuilder.toString());
+
+            if (isStatusChanged) {
+                applicationAuditRequest.setFromStatus(fromStatus);
+                applicationAuditRequest.setToStatus(loanApplication.getStatus());
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+                User currentUser = userService.getUser(userDetails.getId());
+                applicationAuditRequest.setPerformedById(currentUser.getId());
+            }
+            applicationAuditService.createApplicationAudit(applicationAuditRequest);
+
             return loanApplicationToResponse(loanApplication);
         } catch (LoanApplicationNotFoundException e) {
             throw e;
         } catch (Exception e) {
-            throw new LoanApplicationUpdateException("Error updating loan application with ID: " + loanApplicationId + ". " + e.getMessage());
+            throw new LoanApplicationUpdateException("Error updating loan application with ID: " + loanApplicationId + ". " + e.getMessage(), e);
         }
     }
 
@@ -202,11 +252,11 @@ public class LoanApplicationService {
         if (Objects.isNull(loanApplicationRequest.getRequestedAmount()) || loanApplicationRequest.getRequestedAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Requested amount is required and must be greater than zero");
         }
-        if (Objects.nonNull(loanApplicationRequest.getInterestRate()) && 
+        if (Objects.nonNull(loanApplicationRequest.getInterestRate()) &&
             loanApplicationRequest.getInterestRate().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Interest rate must be greater than zero");
         }
-        if (Objects.nonNull(loanApplicationRequest.getTenureMonths()) && 
+        if (Objects.nonNull(loanApplicationRequest.getTenureMonths()) &&
             loanApplicationRequest.getTenureMonths() <= 0) {
             throw new IllegalArgumentException("Tenure months must be greater than zero");
         }
@@ -221,37 +271,53 @@ public class LoanApplicationService {
         LoanApplicationResponse response = new LoanApplicationResponse();
         response.setId(loanApplication.getId());
         response.setApplicationNumber(loanApplication.getApplicationNumber());
-        
+
         if (Objects.nonNull(loanApplication.getCustomer())) {
-            CustomerResponse customerResponse = customerService.getCustomerById(loanApplication.getCustomer().getId());
+            // Build response from the already-loaded entity to avoid extra DB calls
+            CustomerResponse customerResponse = new CustomerResponse();
+            customerResponse.setId(loanApplication.getCustomer().getId());
+            customerResponse.setFirstName(loanApplication.getCustomer().getFirstName());
+            customerResponse.setLastName(loanApplication.getCustomer().getLastName());
+            customerResponse.setEmail(loanApplication.getCustomer().getEmail());
+            customerResponse.setMobileNumber(loanApplication.getCustomer().getMobileNumber());
             response.setCustomer(customerResponse);
         }
-        
+
         if (Objects.nonNull(loanApplication.getBranch())) {
-            BranchResponse branchResponse = branchService.getBranchById(loanApplication.getBranch().getId());
+            // Build response from the already-loaded entity
+            BranchResponse branchResponse = new BranchResponse();
+            branchResponse.setId(loanApplication.getBranch().getId());
+            branchResponse.setName(loanApplication.getBranch().getName());
+            branchResponse.setCode(loanApplication.getBranch().getCode());
+            branchResponse.setAddress(loanApplication.getBranch().getAddress());
             response.setBranch(branchResponse);
         }
-        
+
         response.setRequestedAmount(loanApplication.getRequestedAmount());
         response.setApprovedAmount(loanApplication.getApprovedAmount());
         response.setStatus(loanApplication.getStatus());
         response.setStage(loanApplication.getStage());
-        
+
         if (Objects.nonNull(loanApplication.getTerm())) {
-            LoanTermResponse termResponse = loanTermService.getLoanTermById(loanApplication.getTerm().getId());
+            // Build response from the already-loaded entity
+            LoanTermResponse termResponse = new LoanTermResponse();
+            termResponse.setId(loanApplication.getTerm().getId());
+            termResponse.setName(loanApplication.getTerm().getName());
+            termResponse.setInterestRateAnnual(loanApplication.getTerm().getInterestRateAnnual());
+            termResponse.setMaxTenureMonths(loanApplication.getTerm().getMaxTenureMonths());
             response.setTerm(termResponse);
         }
-        
+
         response.setInterestRate(loanApplication.getInterestRate());
         response.setTenureMonths(loanApplication.getTenureMonths());
-        
+
         if (Objects.nonNull(loanApplication.getCreatedBy())) {
             response.setCreatedBy(loanApplication.getCreatedBy().getId());
         }
         if (Objects.nonNull(loanApplication.getAssignedTo())) {
             response.setAssignedTo(loanApplication.getAssignedTo().getId());
         }
-        
+
         response.setCreatedAt(loanApplication.getCreatedAt());
         response.setUpdatedAt(loanApplication.getUpdatedAt());
         response.setNotes(loanApplication.getNotes());

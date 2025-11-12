@@ -6,5 +6,7 @@ public enum ApplicationStatus {
     APPROVED,
     REJECTED,
     DISBURSED,
-    CLOSED
+    CLOSED,
+    CREATED,
+    INCOMPLETE
 }

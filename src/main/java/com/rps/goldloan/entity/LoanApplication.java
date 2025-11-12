@@ -4,6 +4,7 @@ import com.rps.goldloan.enums.ApplicationStatus;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "loan_application", indexes = {
@@ -60,6 +61,8 @@ public class LoanApplication {
     private LocalDateTime updatedAt;
 
     private String notes;
+
+
 
     public Long getId() {
         return id;
