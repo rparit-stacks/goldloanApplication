@@ -296,6 +296,24 @@ public class LoanApplicationService {
 
         }
 
+        BigDecimal requestedAmount = loanApplicationRequest.getRequestedAmount();
+        BigDecimal minAmount = loanTermService.getLoanTerm(loanApplicationRequest.getTermId()).getMinAmount();
+        BigDecimal maxAmount = loanTermService.getLoanTerm(loanApplicationRequest.getTermId()).getMaxAmount();
+
+
+        if (requestedAmount.compareTo(minAmount) < 0) {
+            throw new IllegalArgumentException(
+                    "Requested amount must be at least " + minAmount
+            );
+        }
+
+        if (requestedAmount.compareTo(maxAmount) > 0) {
+            throw new IllegalArgumentException(
+                    "Requested amount must not exceed the maximum allowed amount of " + maxAmount
+            );
+        }
+
+
 
 
         if (Objects.isNull(loanApplicationRequest.getRequestedAmount()) || loanApplicationRequest.getRequestedAmount().compareTo(BigDecimal.ZERO) <= 0) {
