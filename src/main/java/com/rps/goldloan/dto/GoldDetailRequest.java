@@ -4,20 +4,12 @@ import java.math.BigDecimal;
 
 public class GoldDetailRequest {
 
-    private Long loanApplicationId;
     private String description;
     private BigDecimal weightGrams;
     private BigDecimal purity;
     private BigDecimal marketRatePerGram;
     private String photoUrl;
 
-    public Long getLoanApplicationId() {
-        return loanApplicationId;
-    }
-
-    public void setLoanApplicationId(Long loanApplicationId) {
-        this.loanApplicationId = loanApplicationId;
-    }
 
     public String getDescription() {
         return description;

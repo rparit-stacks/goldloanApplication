@@ -26,7 +26,6 @@ public class GoldDetailService {
 
     @Autowired
     private GoldDetailRepository goldDetailRepository;
-
     @Autowired
     private LoanApplicationService loanApplicationService;
 
@@ -35,15 +34,13 @@ public class GoldDetailService {
             validateGoldDetailRequest(goldDetailRequest);
 
             GoldDetail goldDetail = new GoldDetail();
-            
-            LoanApplication loanApplication = loanApplicationService.getLoanApplication(goldDetailRequest.getLoanApplicationId());
-            goldDetail.setLoanApplication(loanApplication);
 
             goldDetail.setDescription(goldDetailRequest.getDescription());
             goldDetail.setWeightGrams(goldDetailRequest.getWeightGrams());
             goldDetail.setPurity(goldDetailRequest.getPurity());
             goldDetail.setMarketRatePerGram(goldDetailRequest.getMarketRatePerGram());
             goldDetail.setPhotoUrl(goldDetailRequest.getPhotoUrl());
+            goldDetail.setLoanApplication(null);
 
             BigDecimal assessedValue = calculateAssessedValue(
                 goldDetailRequest.getWeightGrams(),
@@ -84,32 +81,10 @@ public class GoldDetailService {
         return goldDetailResponses;
     }
 
-    public List<GoldDetailResponse> getGoldDetailsByLoanApplicationId(Long loanApplicationId) {
-        if (!loanApplicationService.existsById(loanApplicationId)) {
-            throw new GoldDetailNotFoundException("Loan application not found with ID: " + loanApplicationId);
-        }
-        
-        List<GoldDetail> goldDetails = goldDetailRepository.findAll();
-        List<GoldDetailResponse> goldDetailResponses = new ArrayList<>();
-        
-        for (GoldDetail goldDetail : goldDetails) {
-            if (Objects.nonNull(goldDetail.getLoanApplication()) && 
-                goldDetail.getLoanApplication().getId().equals(loanApplicationId)) {
-                goldDetailResponses.add(goldDetailToResponse(goldDetail));
-            }
-        }
-        return goldDetailResponses;
-    }
-
     public GoldDetailResponse updateGoldDetail(Long goldDetailId, GoldDetailUpdateDto goldDetailUpdateDto) {
         try {
             GoldDetail goldDetail = goldDetailRepository.findById(goldDetailId)
                     .orElseThrow(() -> new GoldDetailNotFoundException("Gold detail not found with ID: " + goldDetailId));
-
-            if (Objects.nonNull(goldDetailUpdateDto.getLoanApplicationId())) {
-                LoanApplication loanApplication = loanApplicationService.getLoanApplication(goldDetailUpdateDto.getLoanApplicationId());
-                goldDetail.setLoanApplication(loanApplication);
-            }
 
             if (Objects.nonNull(goldDetailUpdateDto.getDescription()) && !goldDetailUpdateDto.getDescription().isEmpty()) {
                 goldDetail.setDescription(goldDetailUpdateDto.getDescription());
@@ -164,9 +139,6 @@ public class GoldDetailService {
         if (Objects.isNull(goldDetailRequest)) {
             throw new IllegalArgumentException("Gold detail request cannot be null");
         }
-        if (Objects.isNull(goldDetailRequest.getLoanApplicationId())) {
-            throw new IllegalArgumentException("Loan application ID is required and cannot be null");
-        }
         if (Objects.isNull(goldDetailRequest.getWeightGrams()) || 
             goldDetailRequest.getWeightGrams().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Weight in grams is required and must be greater than zero");
@@ -190,9 +162,6 @@ public class GoldDetailService {
     private GoldDetailResponse goldDetailToResponse(GoldDetail goldDetail) {
         GoldDetailResponse response = new GoldDetailResponse();
         response.setId(goldDetail.getId());
-        if (Objects.nonNull(goldDetail.getLoanApplication())) {
-            response.setLoanApplicationId(goldDetail.getLoanApplication().getId());
-        }
         response.setDescription(goldDetail.getDescription());
         response.setWeightGrams(goldDetail.getWeightGrams());
         response.setPurity(goldDetail.getPurity());
@@ -202,5 +171,13 @@ public class GoldDetailService {
         response.setCreatedAt(goldDetail.getCreatedAt());
         response.setUpdatedAt(goldDetail.getUpdatedAt());
         return response;
+    }
+
+    //assign loan application to gold
+    public GoldDetail assignLoanApplication(Long goldDetailId, LoanApplication loanApplication) {
+        GoldDetail goldDetail = goldDetailRepository.findById(goldDetailId)
+                .orElseThrow(() -> new GoldDetailNotFoundException("Gold detail not found with ID: " + goldDetailId));
+        goldDetail.setLoanApplication(loanApplication);
+        return goldDetailRepository.save(goldDetail);
     }
 }

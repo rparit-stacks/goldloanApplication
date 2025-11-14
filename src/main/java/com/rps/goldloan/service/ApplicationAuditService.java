@@ -9,6 +9,7 @@ import com.rps.goldloan.exception.ApplicationAuditCreationException;
 import com.rps.goldloan.exception.ApplicationAuditNotFoundException;
 import com.rps.goldloan.repository.ApplicationAuditRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class ApplicationAuditService {
     private ApplicationAuditRepository applicationAuditRepository;
 
     @Autowired
+    @Lazy
     private LoanApplicationService loanApplicationService;
 
     @Autowired

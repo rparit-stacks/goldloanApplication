@@ -3,6 +3,7 @@ package com.rps.goldloan.controller;
 import com.rps.goldloan.dto.LoanApplicationRequest;
 import com.rps.goldloan.dto.LoanApplicationResponse;
 import com.rps.goldloan.dto.LoanApplicationUpdateDto;
+import com.rps.goldloan.entity.LoanApplication;
 import com.rps.goldloan.service.LoanApplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

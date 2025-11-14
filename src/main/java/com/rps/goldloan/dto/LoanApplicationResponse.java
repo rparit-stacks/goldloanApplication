@@ -4,6 +4,7 @@ import com.rps.goldloan.enums.ApplicationStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class LoanApplicationResponse {
 
@@ -20,6 +21,8 @@ public class LoanApplicationResponse {
     private Integer tenureMonths;
     private Long createdBy;
     private Long assignedTo;
+    private List<GoldDetailResponse> goldDetailResponses;
+    private List<DocumentResponse> documentResponses;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String notes;

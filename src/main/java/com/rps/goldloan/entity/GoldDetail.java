@@ -12,8 +12,8 @@ public class GoldDetail {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "loan_application_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_application_id", nullable = true)
     private LoanApplication loanApplication;
 
     private String description;

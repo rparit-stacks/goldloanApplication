@@ -28,6 +28,7 @@ public class ApplicationAudit {
     @JoinColumn(name = "performed_by_user_id")
     private User performedBy;
 
+    @Column(length = 1024)
     private String comment;
 
     private Instant timestamp;

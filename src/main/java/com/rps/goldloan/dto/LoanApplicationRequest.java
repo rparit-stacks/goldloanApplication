@@ -1,6 +1,7 @@
 package com.rps.goldloan.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class LoanApplicationRequest {
 
@@ -11,6 +12,24 @@ public class LoanApplicationRequest {
     private BigDecimal interestRate;
     private Integer tenureMonths;
     private String notes;
+    private List<Long> goldDetailId;
+    private List<Long> documentId;
+
+    public List<Long> getGoldDetailId() {
+        return goldDetailId;
+    }
+
+    public void setGoldDetailId(List<Long> goldDetailId) {
+        this.goldDetailId = goldDetailId;
+    }
+
+    public List<Long> getDocumentId() {
+        return documentId;
+    }
+
+    public void setDocumentId(List<Long> documentId) {
+        this.documentId = documentId;
+    }
 
     public Long getCustomerId() {
         return customerId;

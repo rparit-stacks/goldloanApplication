@@ -46,7 +46,7 @@ public class UserService {
             user.setRole(userRequest.getRole());
             
 
-            user.setBranch(branchService.getBranch(1L));  //we are setting default branch it can be chnged later when admin created more branches
+            user.setBranch(null);  //we are setting default branch it can be chnged later when admin created more branches
 
             
             user.setActive(userRequest.isActive());

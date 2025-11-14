@@ -13,7 +13,7 @@ public class Document {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "loan_application_id", nullable = false)
+    @JoinColumn(name = "loan_application_id", nullable = true)
     private LoanApplication loanApplication;
 
     @Enumerated(EnumType.STRING)

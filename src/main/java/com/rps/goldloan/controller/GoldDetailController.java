@@ -45,12 +45,7 @@ public class GoldDetailController {
         return ResponseEntity.ok(goldDetails);
     }
 
-    @GetMapping("/loan-application/{loanApplicationId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OFFICER', 'AUDITOR')")
-    public ResponseEntity<List<GoldDetailResponse>> getGoldDetailsByLoanApplicationId(@PathVariable Long loanApplicationId) {
-        List<GoldDetailResponse> goldDetails = goldDetailService.getGoldDetailsByLoanApplicationId(loanApplicationId);
-        return ResponseEntity.ok(goldDetails);
-    }
+
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OFFICER', 'AUDITOR')")

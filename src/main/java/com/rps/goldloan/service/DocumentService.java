@@ -11,6 +11,7 @@ import com.rps.goldloan.exception.DocumentNotFoundException;
 import com.rps.goldloan.exception.DocumentUpdateException;
 import com.rps.goldloan.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ public class DocumentService {
     private DocumentRepository documentRepository;
 
     @Autowired
+    @Lazy
     private LoanApplicationService loanApplicationService;
 
     @Autowired
@@ -38,8 +40,8 @@ public class DocumentService {
 
             Document document = new Document();
             
-            LoanApplication loanApplication = loanApplicationService.getLoanApplication(documentRequest.getLoanApplicationId());
-            document.setLoanApplication(loanApplication);
+
+            document.setLoanApplication(null);
 
             document.setType(documentRequest.getType());
             document.setFileName(documentRequest.getFileName());
@@ -146,9 +148,7 @@ public class DocumentService {
         if (Objects.isNull(documentRequest)) {
             throw new IllegalArgumentException("Document request cannot be null");
         }
-        if (Objects.isNull(documentRequest.getLoanApplicationId())) {
-            throw new IllegalArgumentException("Loan application ID is required and cannot be null");
-        }
+
         if (Objects.isNull(documentRequest.getType())) {
             throw new IllegalArgumentException("Document type is required and cannot be null");
         }
@@ -174,5 +174,13 @@ public class DocumentService {
         }
         documentResponse.setUploadedAt(document.getUploadedAt());
         return documentResponse;
+    }
+
+    public void assignLoanApplication(Long id, LoanApplication loanApplication) {
+        Document document = documentRepository.findById(id)
+                .orElseThrow(() -> new DocumentNotFoundException("Document not found with ID: " + id));
+
+        document.setLoanApplication(loanApplication);
+        documentRepository.save(document);
     }
 }

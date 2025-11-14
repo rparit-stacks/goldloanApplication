@@ -62,7 +62,28 @@ public class LoanApplication {
 
     private String notes;
 
+    @OneToMany(mappedBy = "loanApplication", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GoldDetail> goldDetails;
 
+    @OneToMany(mappedBy = "loanApplication", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Document> documents;
+
+
+    public List<GoldDetail> getGoldDetails() {
+        return goldDetails;
+    }
+
+    public void setGoldDetails(List<GoldDetail> goldDetails) {
+        this.goldDetails = goldDetails;
+    }
+
+    public List<Document> getDocuments() {
+        return documents;
+    }
+
+    public void setDocuments(List<Document> documents) {
+        this.documents = documents;
+    }
 
     public Long getId() {
         return id;

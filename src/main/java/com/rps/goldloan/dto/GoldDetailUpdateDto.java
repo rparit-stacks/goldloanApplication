@@ -59,4 +59,3 @@ public class GoldDetailUpdateDto {
         this.photoUrl = photoUrl;
     }
 }
-

@@ -1,9 +1,7 @@
 package com.rps.goldloan.service;
 
 import com.rps.goldloan.dto.*;
-import com.rps.goldloan.entity.LoanApplication;
-import com.rps.goldloan.entity.LoanTerm;
-import com.rps.goldloan.entity.User;
+import com.rps.goldloan.entity.*;
 import com.rps.goldloan.enums.ApplicationStatus;
 import com.rps.goldloan.exception.LoanApplicationCreationException;
 import com.rps.goldloan.exception.LoanApplicationNotFoundException;
@@ -11,6 +9,7 @@ import com.rps.goldloan.exception.LoanApplicationUpdateException;
 import com.rps.goldloan.repository.LoanApplicationRepository;
 import com.rps.goldloan.security.CustomUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -19,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -46,6 +46,15 @@ public class LoanApplicationService {
     private EmailService emailService;
 
     @Autowired
+    @Lazy
+    private GoldDetailService goldDetailService;
+
+    @Autowired
+    @Lazy
+    private DocumentService documentService;
+
+    @Autowired
+    @Lazy
     private ApplicationAuditService applicationAuditService;
 
     public LoanApplicationResponse createLoanApplication(LoanApplicationRequest loanApplicationRequest) {
@@ -70,6 +79,26 @@ public class LoanApplicationService {
             loanApplication.setStage("IN REVIEW");
             loanApplication.setApplicationNumber(generateApplicationNumber());
 
+            List<GoldDetail> goldDetails = new ArrayList<>();
+            for (Long goldDetailId : loanApplicationRequest.getGoldDetailId()) {
+                GoldDetail goldDetail = goldDetailService.getGoldDetail(goldDetailId);
+                goldDetails.add(goldDetail);
+            }
+            //when we create a loan application the gold detail auto assigned to loan application
+            // and loan applcate direct assign with gold
+
+
+
+            List<Document> documentList = new ArrayList<>();
+            for (Long documentId : loanApplicationRequest.getDocumentId()) {
+                Document document = documentService.getDocument(documentId);
+                documentList.add(document);
+            }
+
+            loanApplication.setDocuments(documentList);
+            loanApplication.setGoldDetails(goldDetails);
+
+
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.isAuthenticated()) {
                 CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -82,6 +111,14 @@ public class LoanApplicationService {
             loanApplication.setUpdatedAt(LocalDateTime.now());
 
             loanApplication = loanApplicationRepository.save(loanApplication);
+
+            for(GoldDetail goldDetail : loanApplication.getGoldDetails()){
+                goldDetailService.assignLoanApplication(goldDetail.getId(), loanApplication);
+            }
+
+            for(Document document : loanApplication.getDocuments()) {
+                documentService.assignLoanApplication(document.getId(), loanApplication);
+            }
 
             //Audit trail
             createCreationAudit(loanApplication);
@@ -249,6 +286,18 @@ public class LoanApplicationService {
         if (Objects.isNull(loanApplicationRequest.getBranchId())) {
             throw new IllegalArgumentException("Branch ID is required and cannot be null");
         }
+
+        if (Objects.isNull(loanApplicationRequest.getGoldDetailId())) {
+            throw new IllegalArgumentException("Gold detail ID is required and cannot be null");
+        }
+
+        if (Objects.isNull(loanApplicationRequest.getDocumentId())) {
+            throw new IllegalArgumentException("Document ID is required and cannot be null");
+
+        }
+
+
+
         if (Objects.isNull(loanApplicationRequest.getRequestedAmount()) || loanApplicationRequest.getRequestedAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Requested amount is required and must be greater than zero");
         }
@@ -260,6 +309,7 @@ public class LoanApplicationService {
             loanApplicationRequest.getTenureMonths() <= 0) {
             throw new IllegalArgumentException("Tenure months must be greater than zero");
         }
+
     }
 
     private String generateApplicationNumber() {
@@ -272,41 +322,17 @@ public class LoanApplicationService {
         response.setId(loanApplication.getId());
         response.setApplicationNumber(loanApplication.getApplicationNumber());
 
-        if (Objects.nonNull(loanApplication.getCustomer())) {
-            // Build response from the already-loaded entity to avoid extra DB calls
-            CustomerResponse customerResponse = new CustomerResponse();
-            customerResponse.setId(loanApplication.getCustomer().getId());
-            customerResponse.setFirstName(loanApplication.getCustomer().getFirstName());
-            customerResponse.setLastName(loanApplication.getCustomer().getLastName());
-            customerResponse.setEmail(loanApplication.getCustomer().getEmail());
-            customerResponse.setMobileNumber(loanApplication.getCustomer().getMobileNumber());
-            response.setCustomer(customerResponse);
-        }
+        response.setCustomer(customerService.getCustomerById(loanApplication.getCustomer().getId()));
+        response.setBranch(branchService.getBranchById(loanApplication.getBranch().getId()));
 
-        if (Objects.nonNull(loanApplication.getBranch())) {
-            // Build response from the already-loaded entity
-            BranchResponse branchResponse = new BranchResponse();
-            branchResponse.setId(loanApplication.getBranch().getId());
-            branchResponse.setName(loanApplication.getBranch().getName());
-            branchResponse.setCode(loanApplication.getBranch().getCode());
-            branchResponse.setAddress(loanApplication.getBranch().getAddress());
-            response.setBranch(branchResponse);
-        }
 
         response.setRequestedAmount(loanApplication.getRequestedAmount());
         response.setApprovedAmount(loanApplication.getApprovedAmount());
         response.setStatus(loanApplication.getStatus());
         response.setStage(loanApplication.getStage());
 
-        if (Objects.nonNull(loanApplication.getTerm())) {
-            // Build response from the already-loaded entity
-            LoanTermResponse termResponse = new LoanTermResponse();
-            termResponse.setId(loanApplication.getTerm().getId());
-            termResponse.setName(loanApplication.getTerm().getName());
-            termResponse.setInterestRateAnnual(loanApplication.getTerm().getInterestRateAnnual());
-            termResponse.setMaxTenureMonths(loanApplication.getTerm().getMaxTenureMonths());
-            response.setTerm(termResponse);
-        }
+        response.setTerm(loanTermService.getLoanTermById(loanApplication.getTerm().getId()));
+
 
         response.setInterestRate(loanApplication.getInterestRate());
         response.setTenureMonths(loanApplication.getTenureMonths());

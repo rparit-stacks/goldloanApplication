@@ -3,12 +3,18 @@ package com.rps.goldloan.service;
 import com.rps.goldloan.dto.BranchRequest;
 import com.rps.goldloan.dto.BranchResponse;
 import com.rps.goldloan.dto.BranchUpdateDto;
+import com.rps.goldloan.dto.UserResponse;
 import com.rps.goldloan.entity.Branch;
+import com.rps.goldloan.entity.User;
+import com.rps.goldloan.enums.Role;
 import com.rps.goldloan.exception.BranchCreationException;
 import com.rps.goldloan.exception.BranchNotFoundException;
 import com.rps.goldloan.exception.BranchUpdateException;
+import com.rps.goldloan.exception.ManagerNotFoundException;
 import com.rps.goldloan.repository.BranchRepository;
+import com.rps.goldloan.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +33,12 @@ public class BranchService {
     @Autowired
     EmailService emailService;
 
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    @Lazy
+    UserService userService;
+
     public BranchResponse createBranch(BranchRequest branchRequest) {
         try {
             validateBranchRequest(branchRequest);
@@ -35,14 +47,24 @@ public class BranchService {
             branch.setName(branchRequest.getName());
             branch.setAddress(branchRequest.getAddress());
             branch.setContactNumber(branchRequest.getContactNumber());
+
+            UserResponse user = userService.getUserById(branchRequest.getManagerId());
+            if (user.getRole() != Role.MANAGER) {
+                throw new ManagerNotFoundException("User with ID: " + branchRequest.getManagerId() + " is not a valid manager.");
+            }
             branch.setManagerId(branchRequest.getManagerId());
+
             branch.setCode(branchRequest.getCode());
             branch.setCreatedAt(LocalDateTime.now());
             branch.setUpdatedAt(LocalDateTime.now());
             branch = branchRepository.save(branch);
+            User user_temp = userService.getUser(branch.getManagerId());
+            user_temp.setBranch(branch);
+            userRepository.save(user_temp);
+
             emailService.sendBranchCreationEmail(branch);
             return branchToBranchDto(branch);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | ManagerNotFoundException e) {
             throw new BranchCreationException(e.getMessage());
         } catch (Exception e) {
             throw new BranchCreationException("Error creating branch: " + e.getMessage());
@@ -123,6 +145,9 @@ public class BranchService {
         if (Objects.isNull(branchRequest.getName()) || branchRequest.getName().isEmpty()) {
             throw new IllegalArgumentException("Branch name is required and cannot be empty");
         }
+      
+        
+        
     }
 
     private BranchResponse branchToBranchDto(Branch branch) {
